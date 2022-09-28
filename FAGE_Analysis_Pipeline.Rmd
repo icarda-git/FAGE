@@ -143,6 +143,10 @@ source("./lib/fa_plots.R")
 # get model definitions
 load(file = "./lib/MODLIST.Rda")
 
+# remove previouse analysis outputs/plots
+unlink("outputs/*", force = TRUE)
+unlink("plots/*", force = TRUE)
+
 config_file <- "config.ini"
 
 if (!file.exists(config_file)) {
@@ -384,23 +388,36 @@ for(i in 1:nlevels(data$trial)){
   dev.off()
 }
 
-field.plots[sapply(field.plots, is.null)] <- NULL
-plot.names[sapply(plot.names, is.null)] <- NULL
+if (length(plot.names) != 0) {
+  field.plots[sapply(field.plots, is.null)] <- NULL
+  plot.names[sapply(plot.names, is.null)] <- NULL
+  
+  pages <- marrangeGrob(grobs = field.plots, nrow=1, ncol=1)
+  
+  page.width  <- 2 * max(as.numeric(data$col))
+  page.height <- 5 * max(as.numeric(data$row))
+  
+  ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Fieldmap.pdf"), 
+         plot = pages, width = page.width, height = page.height, dpi = 600, units = "cm")
+  
+  select.plot <- paste0("plots/fieldmap_", plot.names, "_", trait.name, ".png")
+  names(select.plot) <- plot.names
+  bsselect(select.plot, type = "iframe", live_search = TRUE, show_tick = TRUE, elementId = "fieldmaps")$prepend[[1]]$html
+} else {
+  message("There is no spatial data!")
+}
 
-pages <- marrangeGrob(grobs = field.plots, nrow=1, ncol=1)
+```
 
-page.width  <- 2 * max(as.numeric(data$col))
-page.height <- 5 * max(as.numeric(data$row))
-
-ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Fieldmap.pdf"), 
-       plot = pages, width = page.width, height = page.height, dpi = 600, units = "cm")
-
-select.plot <- paste0("plots/fieldmap_", plot.names, "_", trait.name, ".png")
-names(select.plot) <- plot.names
-bsselect(select.plot, type = "iframe", live_search = TRUE, show_tick = TRUE, elementId = "fieldmaps")$prepend[[1]]$html
+```{r results = 'asis', echo = FALSE}
+if (length(plot.names) == 0) { cat("<!--") }
 ```
 
 >_Check your field maps [here](`r paste0("./outputs/",study.name, "_", trait.name, "_Stage-1_Fieldmap.pdf")`)_
+
+```{r results = 'asis', echo = FALSE}
+if (length(plot.names) == 0) { cat("-->") }
+```
 
 # Single-Environment Analysis
 
@@ -410,7 +427,7 @@ This is the first step of the two-stages analyses where each trial (or environme
 
 These plots highly potential differences in the data that might affect the analyses and should alert the users. These plots assist identifying trials/individuals with large variations or large differences between replications/blocks. 
 
-```{r distribution_plots, fig.width = 6, fig.height = 6, dpi = 300}
+```{r distribution_plots, fig.width = 6, fig.height = 6, dpi = 300, warning = FALSE}
 par(mar = c(10, 4, 2, 2) + 0.1)
 xyplot(resp ~ gen | trial, groups = block, data = data, 
        scales = list(draw = FALSE), strip = strip.custom(par.strip.text = list(cex = 0.8)))
@@ -594,6 +611,12 @@ for(i in 1:nlevels(data$trial)){
                              block="block", ibk="ibk", add.block=has.block, add.ibk=has.ibk,
                              type.gen=type.gen, type.block="fixed", type.residual="indep")
   }
+  
+  # if there are singularities in the average information matrix.
+  if (is.na(output.ID$call)) {
+    summS[i, "sel_model"] <- NA
+    next
+  }
 
   # detect outliers
   outliers <- detect_outliers(site.data, output.ID$mod,
@@ -644,16 +667,7 @@ for(i in 1:nlevels(data$trial)){
   plots <- plot(output.REPr$mod)  # Residual plots
   residual.plots[[i]]  <- grid.arrange(plots$histogram, plots$fitted, plots$qq, plots$rowlabels, nrow=2, top=summS$Environment[i])
   variogram.plots[[i]] <- plot(varioGram(output.REPr$mod), main=summS$Environment[i])  # Variogram fitted model
-  residual.layout[[i]] <- ggplot(outliers$data, aes(row, col, fill = scres)) + geom_tile() + 
-    scale_fill_gradient2(low = "#DD2525", mid = "#FFFCBF", high = "#258025") + 
-    ggtitle(paste("Residuals Layout -", summS$Environment[i])) + 
-    theme(
-      panel.grid.major = element_blank(), 
-      panel.grid.minor = element_blank(),
-      panel.background = element_rect(fill = "transparent",colour = NA),
-      plot.background = element_rect(fill = "transparent",colour = NA)
-    )
-
+  
   png(paste0("plots/residual_", summS$Environment[i], "_", trait.name, ".png"))
   plot(residual.plots[[i]])
   dev.off()
@@ -661,10 +675,22 @@ for(i in 1:nlevels(data$trial)){
   png(paste0("plots/variogram_", summS$Environment[i], "_", trait.name, ".png"))
   print(variogram.plots[[i]])
   dev.off()
+  
+  if (has.spatial) {
+    residual.layout[[i]] <- ggplot(outliers$data, aes(row, col, fill = scres)) + geom_tile() + 
+      scale_fill_gradient2(low = "#DD2525", mid = "#FFFCBF", high = "#258025") + 
+      ggtitle(paste("Residuals Layout -", summS$Environment[i])) + 
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+      )
 
-  png(paste0("plots/res_layout_", summS$Environment[i], "_", trait.name, ".png"))
-  print(residual.layout[[i]])
-  dev.off()
+    png(paste0("plots/res_layout_", summS$Environment[i], "_", trait.name, ".png"))
+    print(residual.layout[[i]])
+    dev.off()
+  }
 
   # output.REPr$mod$call
   # output.REPr$gt                               # Goodness-of-fit statistics
@@ -702,10 +728,12 @@ pages <- marrangeGrob(grobs = residual.plots, nrow=1, ncol=1)
 ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Residual_Plots.pdf"), 
        plot = pages, width = 20, height = 20, dpi = 600, units = "cm")
 
-residual.layout[sapply(residual.layout, is.null)] <- NULL
-pages <- marrangeGrob(grobs = residual.layout, nrow=1, ncol=1)
-ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Residual_Layouts.pdf"), 
-       plot = pages, width = 20, height = 20, dpi = 600, units = "cm")
+if (length(residual.layout) != 0) {
+  residual.layout[sapply(residual.layout, is.null)] <- NULL
+  pages <- marrangeGrob(grobs = residual.layout, nrow=1, ncol=1)
+  ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Residual_Layouts.pdf"), 
+         plot = pages, width = 20, height = 20, dpi = 600, units = "cm")
+}
 
 write.csv(summS, paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Summary_Statistics.csv"))
 write.csv(predS, paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Predictions.csv"))
@@ -760,7 +788,7 @@ create_dt(summS[,c(1:12, 19:20, 24:32)])
 These are the residuals and variograms from each trial available to identify potential outliers (scres correspond to the standardized conditional residuals). The interactive graphs are presented below for exploration. However, in addition, some outliers are reported in the database based on the pre-specified thresholds (see table below). Note that some are identified as such (outlier = 1), and counterpart observations (outlier = 0) for the same germplasms in other replications. Close exploration of this database should ensure that the corresponding observations are eliminated.
 
 ```{r residual_plots, warning = FALSE}
-select.environment <- summS[!is.na(summS$sel_model), "Environment"]
+select.environment <- summS[!is.na(summS$sel_model) & !is.na(summS$residualVar), "Environment"]
 select.residual    <- paste0("plots/residual_", select.environment, "_", trait.name, ".png")
 
 names(select.residual) <- select.environment
@@ -773,7 +801,7 @@ bsselect(select.residual,
 ```
 
 ```{r variogram_plots, warning = FALSE}
-select.environment <- summS[!is.na(summS$sel_model), "Environment"]
+select.environment <- summS[!is.na(summS$sel_model) & !is.na(summS$residualVar), "Environment"]
 select.variogram   <- paste0("plots/variogram_", select.environment, "_", trait.name, ".png")
 
 names(select.variogram) <- select.environment
@@ -786,16 +814,18 @@ bsselect(select.variogram,
 ```
 
 ```{r residual_layouts, warning = FALSE}
-select.environment <- summS[!is.na(summS$sel_model), "Environment"]
+select.environment <- summS[!is.na(summS$sel_model) & trial.type$has.spatial != "NO" & !is.na(summS$residualVar), "Environment"]
 select.residual    <- paste0("plots/res_layout_", select.environment, "_", trait.name, ".png")
 
 names(select.residual) <- select.environment
 
-bsselect(select.residual, 
-         type = "iframe", 
-         live_search = TRUE, 
-         show_tick = TRUE, 
-         elementId = 'res_layouts')$prepend[[1]]$html
+if (length(select.environment) != 0) {
+  bsselect(select.residual, 
+           type = "iframe", 
+           live_search = TRUE, 
+           show_tick = TRUE, 
+           elementId = 'res_layouts')$prepend[[1]]$html
+}
 ```
 
 ```{r detecting_outliers}
@@ -810,7 +840,15 @@ create_dt(temp)
 
 >_Check your variogram fitted model [here](`r paste0("./outputs/", study.name, "_", trait.name, "_Stage-1_Variogram_Plots.pdf")`)_
 
+```{r results = 'asis', echo = FALSE}
+if (length(select.environment) == 0) { cat("<!--") }
+```
+
 >_Check your residual layouts [here](`r paste0("./outputs/", study.name, "_", trait.name, "_Stage-1_Residual_Layouts.pdf")`)_
+
+```{r results = 'asis', echo = FALSE}
+if (length(select.environment) == 0) { cat("-->") }
+```
 
 ## Summary Table of Final Models
 
@@ -855,7 +893,15 @@ The table below presents the final models selected according to the criteria spe
 - Fitting Criteria
 
 ```{r model_selection}
-create_dt(merge(summS[,c("Environment", "sel_model")], mod.list, by.x="sel_model", by.y="Model", sort=FALSE))
+if (length(select.environment) != 0) {
+  create_dt(merge(summS[,c("Environment", "sel_model")], 
+                  mod.list, 
+                  by.x = "sel_model", 
+                  by.y = "Model", 
+                  sort = FALSE))
+} else {
+  warning("There is no spatial data!")
+}
 ```
 
 ## Obtaining Predictions
@@ -877,92 +923,105 @@ create_dt(predS)
 
 ```{r bms_output}
 folder.name <- paste0("BMS_", format(Sys.Date(), "%Y-%m-%d"), "T", format(Sys.time(), "%H-%M-%S"))
-dir.create(paste0("./outputs/", folder.name))
 
-col.mean <- paste0(trait.name, "_Means")
-col.se   <- paste0(trait.name, "_UnitErrors")
+if ("TRIAL_INSTANCE" %in% colnames(data)) {
+  dir.create(paste0("./outputs/", folder.name))
+  
+  col.mean <- paste0(trait.name, "_Means")
+  col.se   <- paste0(trait.name, "_UnitErrors")
+  
+  BMSOutput <- data.frame(matrix(ncol = 6, nrow = dim(predS)[1]))
+  colnames(BMSOutput) <- c("TRIAL_INSTANCE", "LOCATION_NAME", "ENTRY_NO", "GID", col.mean, col.se)
+  
+  lookup.TRIAL_INSTANCE <- unique(data[,c("trial", "TRIAL_INSTANCE")])
+  bms.predS  <- merge(predS, lookup.TRIAL_INSTANCE, by.x = "Environment", by.y = "trial", all.x = TRUE)
+  
+  lookup.germplasm <- germplasm.data[,c("germplasmName", "germplasmDbId", "entryNumber")]
+  lookup.germplasm$germplasmName <- gsub(" ","",tolower(lookup.germplasm$germplasmName))
+  bms.predS$gen <- gsub(" ","",tolower(bms.predS$gen))
+  
+  bms.predS  <- merge(bms.predS, lookup.germplasm, by.x = "gen", by.y = "germplasmName", all.x = TRUE)
+  
+  bms.predS  <- bms.predS[with(bms.predS, order(Environment, gen)),]
+  
+  
+  BMSOutput$TRIAL_INSTANCE <- bms.predS$TRIAL_INSTANCE
+  BMSOutput$LOCATION_NAME  <- bms.predS$Environment
+  BMSOutput$ENTRY_NO       <- bms.predS$entryNumber
+  BMSOutput$GID            <- bms.predS$germplasmDbId
+  BMSOutput[,c(col.mean)]  <- bms.predS$predicted.value
+  BMSOutput[,c(col.se)]    <- bms.predS$std.error
+  
+  write.csv(BMSOutput, paste0("./outputs/", folder.name, "/BMSOutput.csv"), row.names = FALSE)
+  
+  BMSSummary <- data.frame(matrix(ncol = 28, nrow = dim(summS)[1]))
+  colnames(BMSSummary) <- c("TRIAL_INSTANCE", "LOCATION_NAME", "Trait", "NumValues", 
+                            "NumMissing", "Mean", "Variance", "SD", "Min", "Max", "Range", 
+                            "Median", "LowerQuartile", "UpperQuartile", "MeanRep", "MinRep", 
+                            "MaxRep", "MeanSED", "MinSED", "MaxSED", "MeanLSD", "MinLSD", 
+                            "MaxLSD", "CV", "Heritability", "WaldStatistic", "WaldDF", "Pvalue")
+  
+  bms.summS  <- merge(summS, lookup.TRIAL_INSTANCE, by.x = "Environment", by.y = "trial", all.x = TRUE)
+  
+  BMSSummary$TRIAL_INSTANCE  <- bms.summS$TRIAL_INSTANCE
+  BMSSummary$LOCATION_NAME   <- bms.summS$Environment
+  BMSSummary$Trait           <- bms.summS$Trait
+  BMSSummary$NumValues       <- bms.summS$nonNA_obs
+  BMSSummary$NumMissing      <- bms.summS$NumMissing
+  BMSSummary$Mean            <- bms.summS$grandMean
+  BMSSummary$Variance        <- bms.summS$Variance
+  BMSSummary$SD              <- bms.summS$SD
+  BMSSummary$Min             <- bms.summS$Min
+  BMSSummary$Max             <- bms.summS$Max
+  BMSSummary$Range           <- bms.summS$Range
+  BMSSummary$Median          <- bms.summS$Median
+  BMSSummary$LowerQuartile   <- bms.summS$LowerQuartile
+  BMSSummary$UpperQuartile   <- bms.summS$UpperQuartile
+  BMSSummary$MeanRep         <- bms.summS$MeanRep
+  BMSSummary$MinRep          <- bms.summS$MinRep
+  BMSSummary$MaxRep          <- bms.summS$MaxRep
+  BMSSummary$MeanSED         <- aggregate(predS$std.error, list(predS$Environment), mean)$x
+  BMSSummary$MinSED          <- aggregate(predS$std.error, list(predS$Environment), min)$x
+  BMSSummary$MaxSED          <- aggregate(predS$std.error, list(predS$Environment), max)$x
+  BMSSummary$MeanLSD         <- bms.summS$LSD
+  BMSSummary$MinLSD          <- aggregate(predS$std.error, list(predS$Environment), min)$x * 1.96
+  BMSSummary$MaxLSD          <- aggregate(predS$std.error, list(predS$Environment), max)$x * 1.96
+  BMSSummary$CV              <- bms.summS$CV
+  BMSSummary$Heritability    <- bms.summS$heritVC
+  BMSSummary$WaldStatistic   <- bms.summS$WaldStatistic
+  BMSSummary$WaldDF          <- bms.summS$WaldDF
+  BMSSummary$Pvalue          <- bms.summS$Pvalue
+  
+  write.csv(BMSSummary, paste0("./outputs/", folder.name, "/BMSSummary.csv"), row.names = FALSE)
+  
+  con <- file(paste0("./outputs/", folder.name, "/BMSInformation.txt.txt"))
+  writeLines(c(paste0("InputDataSetId="),
+               paste0("OutputDataSetId=", 0),        # this is unused in the system and always defaults to 0
+               paste0("StudyId=", bms.studyId),
+               paste0("WorkbenchProjectId=")), con)
+  close(con)
+  
+  setwd("./outputs")
+  unlink(list.files()[grep("*\\.zip", list.files())])
+  files2zip <- dir(folder.name, full.names = TRUE)
+  zip(zipfile = folder.name, files = files2zip)
+  setwd("..")
+  
+  unlink(paste0("./outputs/", folder.name), recursive=TRUE)
+} else {
+  warning("No BMS TRIAL_INSTANCE data available!")
+}
+```
 
-BMSOutput <- data.frame(matrix(ncol = 6, nrow = dim(predS)[1]))
-colnames(BMSOutput) <- c("TRIAL_INSTANCE", "LOCATION_NAME", "ENTRY_NO", "GID", col.mean, col.se)
-
-lookup.TRIAL_INSTANCE <- unique(data[,c("trial", "TRIAL_INSTANCE")])
-bms.predS  <- merge(predS, lookup.TRIAL_INSTANCE, by.x = "Environment", by.y = "trial", all.x = TRUE)
-
-lookup.germplasm <- germplasm.data[,c("germplasmName", "germplasmDbId", "entryNumber")]
-lookup.germplasm$germplasmName <- gsub(" ","",tolower(lookup.germplasm$germplasmName))
-bms.predS$gen <- gsub(" ","",tolower(bms.predS$gen))
-
-bms.predS  <- merge(bms.predS, lookup.germplasm, by.x = "gen", by.y = "germplasmName", all.x = TRUE)
-
-bms.predS  <- bms.predS[with(bms.predS, order(Environment, gen)),]
-
-
-BMSOutput$TRIAL_INSTANCE <- bms.predS$TRIAL_INSTANCE
-BMSOutput$LOCATION_NAME  <- bms.predS$Environment
-BMSOutput$ENTRY_NO       <- bms.predS$entryNumber
-BMSOutput$GID            <- bms.predS$germplasmDbId
-BMSOutput[,c(col.mean)]  <- bms.predS$predicted.value
-BMSOutput[,c(col.se)]    <- bms.predS$std.error
-
-write.csv(BMSOutput, paste0("./outputs/", folder.name, "/BMSOutput.csv"), row.names = FALSE)
-
-BMSSummary <- data.frame(matrix(ncol = 28, nrow = dim(summS)[1]))
-colnames(BMSSummary) <- c("TRIAL_INSTANCE", "LOCATION_NAME", "Trait", "NumValues", 
-                          "NumMissing", "Mean", "Variance", "SD", "Min", "Max", "Range", 
-                          "Median", "LowerQuartile", "UpperQuartile", "MeanRep", "MinRep", 
-                          "MaxRep", "MeanSED", "MinSED", "MaxSED", "MeanLSD", "MinLSD", 
-                          "MaxLSD", "CV", "Heritability", "WaldStatistic", "WaldDF", "Pvalue")
-
-bms.summS  <- merge(summS, lookup.TRIAL_INSTANCE, by.x = "Environment", by.y = "trial", all.x = TRUE)
-
-BMSSummary$TRIAL_INSTANCE  <- bms.summS$TRIAL_INSTANCE
-BMSSummary$LOCATION_NAME   <- bms.summS$Environment
-BMSSummary$Trait           <- bms.summS$Trait
-BMSSummary$NumValues       <- bms.summS$nonNA_obs
-BMSSummary$NumMissing      <- bms.summS$NumMissing
-BMSSummary$Mean            <- bms.summS$grandMean
-BMSSummary$Variance        <- bms.summS$Variance
-BMSSummary$SD              <- bms.summS$SD
-BMSSummary$Min             <- bms.summS$Min
-BMSSummary$Max             <- bms.summS$Max
-BMSSummary$Range           <- bms.summS$Range
-BMSSummary$Median          <- bms.summS$Median
-BMSSummary$LowerQuartile   <- bms.summS$LowerQuartile
-BMSSummary$UpperQuartile   <- bms.summS$UpperQuartile
-BMSSummary$MeanRep         <- bms.summS$MeanRep
-BMSSummary$MinRep          <- bms.summS$MinRep
-BMSSummary$MaxRep          <- bms.summS$MaxRep
-BMSSummary$MeanSED         <- aggregate(predS$std.error, list(predS$Environment), mean)$x
-BMSSummary$MinSED          <- aggregate(predS$std.error, list(predS$Environment), min)$x
-BMSSummary$MaxSED          <- aggregate(predS$std.error, list(predS$Environment), max)$x
-BMSSummary$MeanLSD         <- bms.summS$LSD
-BMSSummary$MinLSD          <- aggregate(predS$std.error, list(predS$Environment), min)$x * 1.96
-BMSSummary$MaxLSD          <- aggregate(predS$std.error, list(predS$Environment), max)$x * 1.96
-BMSSummary$CV              <- bms.summS$CV
-BMSSummary$Heritability    <- bms.summS$heritVC
-BMSSummary$WaldStatistic   <- bms.summS$WaldStatistic
-BMSSummary$WaldDF          <- bms.summS$WaldDF
-BMSSummary$Pvalue          <- bms.summS$Pvalue
-
-write.csv(BMSSummary, paste0("./outputs/", folder.name, "/BMSSummary.csv"), row.names = FALSE)
-
-con <- file(paste0("./outputs/", folder.name, "/BMSInformation.txt.txt"))
-writeLines(c(paste0("InputDataSetId="),
-             paste0("OutputDataSetId=", 0),        # this is unused in the system and always defaults to 0
-             paste0("StudyId=", bms.studyId),
-             paste0("WorkbenchProjectId=")), con)
-close(con)
-
-setwd("./outputs")
-unlink(list.files()[grep("*\\.zip", list.files())])
-files2zip <- dir(folder.name, full.names = TRUE)
-zip(zipfile = folder.name, files = files2zip)
-setwd("..")
-
-unlink(paste0("./outputs/", folder.name), recursive=TRUE)
+```{r results = 'asis', echo = FALSE}
+if (!"TRIAL_INSTANCE" %in% colnames(data)) { cat("<!--") }
 ```
 
 >_Get the file to upload BLUEs & summary stats to BMS [here](`r paste0("./outputs/", folder.name, ".zip")`)_
+
+```{r results = 'asis', echo = FALSE}
+if (!"TRIAL_INSTANCE" %in% colnames(data)) { cat("-->") }
+```
 
 
 ```{r stage1_end, echo = FALSE}
@@ -991,8 +1050,9 @@ predS <- read.csv(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Pred
 
 # explore the results from the sites
 # eliminate trials with h2VC < threshold (e.g., 0.10)
-valid.env <- summS[(summS$Type != "AUGMENTED" & summS$heritVC > as.numeric(config$met$heritVC.limit)) |
-                   (summS$Type == "AUGMENTED" & summS$Pvalue < as.numeric(config$met$Pvalue.limit)), 
+valid.env <- summS[!is.na(summS$sel_model) & 
+                   ((summS$Type != "AUGMENTED" & summS$heritVC > as.numeric(config$met$heritVC.limit)) |
+                   (summS$Type == "AUGMENTED" & summS$Pvalue < as.numeric(config$met$Pvalue.limit))), 
                    "Environment"]
 
 # filter to sites of interest/valid
@@ -1077,7 +1137,6 @@ Several structures are available, but the most relevant one is factor analytic (
 The table below presents summary and goodness-of-fit statistics for these models. As these step 2 models only differ on their random effects, and all these models are nested with each other, the criteria to use can be either logL, AIC, or BIC. The recommendation is to use the one with the lowest logL value. But it is also possible to use sequential likelihood-ratio tests (LRT) to identify the best model. In any case, once a model is selected it is strongly recommended to assess the corresponding variance-covariance matrix (as a heatmap of genetic correlation for example as shown later) to assess its quality (and see if is biologically reasonable). In this example, an FA of order 6 was selected.
 
 ```{r fa_models, cache = FALSE, warning = FALSE, message = FALSE}
-
 faModels <- list()
 i <- 1
 
