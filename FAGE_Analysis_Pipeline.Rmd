@@ -93,12 +93,12 @@ There are several R libraries that are used for statistical analyses in the pres
 The specifications of the analyses are presented in the file config.in that assists on the data manipulations and model fit.
 
 ```{r load_libraries, message = FALSE, warning = FALSE}
-required_packages <- c("asreml", "ggplot2", "lattice", "gridExtra", "dplyr", "plyr", "ggrepel", "tidyr","ggfortify", "missMDA", "ggpubr", "pheatmap", "kableExtra", "DT", "configr", "remotes", "plotly")
+required_packages <- c("QBMS", "asreml", "ggplot2", "lattice", "gridExtra", "dplyr", "plyr", "ggrepel", "tidyr","ggfortify", "missMDA", "ggpubr", "pheatmap", "kableExtra", "DT", "configr", "remotes", "plotly")
 
 not_installed <- required_packages[!(required_packages %in% installed.packages()[ , "Package"])]
-if(length(not_installed)) install.packages(not_installed)
+if(length(not_installed)) install.packages(not_installed, repos = "http://cran.us.r-project.org")
 
-if (!require(QBMS)) remotes::install_github("icarda-git/QBMS")
+#if (!require(QBMS)) remotes::install_github("icarda-git/QBMS")
 if (!require(bsselectR)) remotes::install_github("walkerke/bsselectR")
 
 # stage-1 required libraries
@@ -980,12 +980,22 @@ if ("TRIAL_INSTANCE" %in% colnames(data)) {
   BMSSummary$MeanRep         <- bms.summS$MeanRep
   BMSSummary$MinRep          <- bms.summS$MinRep
   BMSSummary$MaxRep          <- bms.summS$MaxRep
-  BMSSummary$MeanSED         <- aggregate(predS$std.error, list(predS$Environment), mean)$x
-  BMSSummary$MinSED          <- aggregate(predS$std.error, list(predS$Environment), min)$x
-  BMSSummary$MaxSED          <- aggregate(predS$std.error, list(predS$Environment), max)$x
+  BMSSummary$MeanSED         <- merge(bms.summS$Environment, 
+                                      aggregate(std.error~Environment, data = predS, mean, na.rm = TRUE), 
+                                      by = 1, all.x = TRUE)$std.error
+  BMSSummary$MinSED          <- merge(bms.summS$Environment, 
+                                      aggregate(std.error~Environment, data = predS, min, na.rm = TRUE), 
+                                      by = 1, all.x = TRUE)$std.error
+  BMSSummary$MaxSED          <- merge(bms.summS$Environment, 
+                                      aggregate(std.error~Environment, data = predS, max, na.rm = TRUE), 
+                                      by = 1, all.x = TRUE)$std.error
   BMSSummary$MeanLSD         <- bms.summS$LSD
-  BMSSummary$MinLSD          <- aggregate(predS$std.error, list(predS$Environment), min)$x * 1.96
-  BMSSummary$MaxLSD          <- aggregate(predS$std.error, list(predS$Environment), max)$x * 1.96
+  BMSSummary$MinLSD          <- merge(bms.summS$Environment, 
+                                      aggregate(std.error~Environment, data = predS, min, na.rm = TRUE), 
+                                      by = 1, all.x = TRUE)$std.error * 1.96
+  BMSSummary$MaxLSD          <- merge(bms.summS$Environment, 
+                                      aggregate(std.error~Environment, data = predS, max, na.rm = TRUE), 
+                                      by = 1, all.x = TRUE)$std.error * 1.96
   BMSSummary$CV              <- bms.summS$CV
   BMSSummary$Heritability    <- bms.summS$heritVC
   BMSSummary$WaldStatistic   <- bms.summS$WaldStatistic
