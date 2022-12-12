@@ -944,6 +944,7 @@ if ("TRIAL_INSTANCE" %in% colnames(data)) {
   
   lookup.germplasm <- germplasm.data[,c("germplasmName", "germplasmDbId", "entryNumber")]
   lookup.germplasm$germplasmName <- gsub(" ","",tolower(lookup.germplasm$germplasmName))
+  lookup.germplasm <- lookup.germplasm[!duplicated(lookup.germplasm$germplasmName),]
   bms.predS$gen <- gsub(" ","",tolower(bms.predS$gen))
   
   bms.predS  <- merge(bms.predS, lookup.germplasm, by.x = "gen", by.y = "germplasmName", all.x = TRUE)
