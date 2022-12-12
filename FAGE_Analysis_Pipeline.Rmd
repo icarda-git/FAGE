@@ -557,6 +557,12 @@ for(i in 1:nlevels(data$trial)){
     
     # skip if replicated trial has only one valid replication data
     if(trial.type[i,"design"] %in% c("ALPHA", "RCBD") & length(unique(site.data[!is.na(site.data$resp),"block"])) == 1) next
+    
+    # skip if replication plots have the same response values (copy past) to avoid singularity case
+    tmp <- site.data[rownames(unique(site.data[c("gen", "block")])), c("gen", "block", "resp")]
+    tmp <- reshape(tmp, idvar = "gen", timevar = "block", direction = "wide")
+    tmp <- apply(tmp[,-1], 1, function(x) sum(x) - x[1]*length(x))
+    if(all(tmp == 0)) next
   }
 
   type.gen <- "random"
