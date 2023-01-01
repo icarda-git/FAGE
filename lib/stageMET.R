@@ -84,7 +84,7 @@ stageMET <- function(data=NULL, gen=NULL, trial=NULL, resp=NULL, weight=NULL,
   # df: IDSORT, gen, trial, resp, weight
   # Code Strings for ASReml-R
   code.asr <- as.character()
-  code.asr[1] <- 'asreml::asreml(fixed=resp~1'
+  code.asr[1] <- 'asreml(fixed=resp~1'
   code.asr[2] <- 'random=~'
   code.asr[3] <- 'weights=weight'
   code.asr[4] <- 'family=asr_gaussian(dispersion=1)'
@@ -171,7 +171,7 @@ stageMET <- function(data=NULL, gen=NULL, trial=NULL, resp=NULL, weight=NULL,
   if (nrand!=0) { str.mod <- paste(code.asr[1],code.asr[2],code.asr[3],code.asr[4],code.asr[5],sep=',') } 
   #print(str.mod)
   eval(parse(text=str.mod) )
-  if (!mod.ref$converge) { eval(parse(text='mod.ref<-asreml::update.asreml(mod.ref)')) }
+  if (!mod.ref$converge) { eval(parse(text='mod.ref<-update.asreml(mod.ref)')) }
   
   # Obtaining predictions (and ebvs) for models
   if (vcovp) {

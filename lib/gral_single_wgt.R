@@ -98,7 +98,7 @@ gral.single <- function(data=NULL, gen=NULL, check=NULL, block=NULL, ibk=NULL, r
                            add.nugget=FALSE,  type.gen='random', type.block='fixed', 
                            type.residual='indep', fix.vc=FALSE, vc.table=NULL){
 
-  asreml::asreml.options(trace=FALSE, extra=3)
+  asreml.options(trace=FALSE, extra=3)
   n<-nrow(data)
   if (n==0) { stop('No information in data.frame provided.')}
   # Defining factors
@@ -152,7 +152,7 @@ gral.single <- function(data=NULL, gen=NULL, check=NULL, block=NULL, ibk=NULL, r
   
   # Code Strings for ASReml-R
   code.asr <- as.character()
-  code.asr[1] <- 'asreml::asreml(fixed=resp~1'
+  code.asr[1] <- 'asreml(fixed=resp~1'
   code.asr[2] <- 'random=~'
   code.asr[3] <- 'residual=~' 
   code.asr[4] <- 'na.action=list(x=\"include\",y=\"include\"),data=df)'
@@ -272,7 +272,7 @@ gral.single <- function(data=NULL, gen=NULL, check=NULL, block=NULL, ibk=NULL, r
   mod.ref <- tryCatch({ eval(parse(text=str.mod)) }, error=function(msg){return(NA)})
 
   if(class(mod.ref)=='asreml') {
-    if (!mod.ref$converge) { eval(parse(text='mod.ref<-asreml::update.asreml(mod.ref)')) }
+    if (!mod.ref$converge) { eval(parse(text='mod.ref<-update.asreml(mod.ref)')) }
     if (fix.vc) {
        vc.old <- summary(mod.ref)$varcomp
        vc.table <- data.frame(Component=rownames(vc.old),
@@ -290,7 +290,7 @@ gral.single <- function(data=NULL, gen=NULL, check=NULL, block=NULL, ibk=NULL, r
     }
     
     # Obtaining predictions for models (and ANOVA)
-    aov <- asreml::wald.asreml(mod.ref, denDF='algebraic', ssType='incremental')$Wald
+    aov <- wald.asreml(mod.ref, denDF='algebraic', ssType='incremental')$Wald
     
     # Obtaining solutions (only random)
     if (type.gen=='fixed') { 
