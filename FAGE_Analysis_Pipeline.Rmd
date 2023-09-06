@@ -194,7 +194,7 @@ If you are reading data directly, then two CSV files are required here in the sa
 
 - `r paste0(study.name, "_", trait.name, "_data.csv")` for your trials data. Mandatory columns are `trial`, `gen` (genotypes, they should match with the ones in the previous germplasm list), `block` (replication), `ibk` (incomplete blocks), `col` and `row` (field layout), and `resp` (trait response).
 
->If no block (replication) or ibk (incomplete) block are considered in the designs, these should be filled with a 1 in the dataset. Also, if no column or row coordinates are available, these should be provided as NA in the dataset.
+>If no block (replication) is considered in the designs, this should be filled with a 1 in the dataset. Also, if no ibk (incomplete blocks), column or row coordinates are available, these should be provided as NA in the dataset.
 
 Get the name of required input files and check if they exist:
 
@@ -564,6 +564,12 @@ for(i in 1:nlevels(data$trial)){
     tmp <- apply(tmp[,-1], 1, function(x) sum(x) - x[1]*length(x))
     if(all(tmp == 0)) next
   }
+  
+  if(has.ibk){
+    ibk.field <- "ibk"
+  } else {
+    ibk.field <- NULL
+  }
 
   type.gen <- "random"
   
@@ -593,7 +599,7 @@ for(i in 1:nlevels(data$trial)){
 
     # include/exclude checks discussion (same population vs. higher variance e.g. susceptible/resistance)
     test.sel <- spatial.selector(data=site.data, gen="gen", check=NULL, row="row", col="col", 
-                                 resp="resp", type.gen=type.gen, block="block", ibk="ibk",
+                                 resp="resp", type.gen=type.gen, block="block", ibk=ibk.field,
                                  type.block="fixed", strict=strict.level)
     
     # Best spatial model selected according to minimum A.opt (Augmented) or max heritPEV (all other)
@@ -606,7 +612,7 @@ for(i in 1:nlevels(data$trial)){
     summS[i, "sel_model"] <- sel # selected spatial model
 
     output.ID <- spatial.selector(data=site.data, gen="gen", check=NULL, row="row", col="col", 
-                                  resp="resp", type.gen=type.gen, block="block", ibk="ibk",
+                                  resp="resp", type.gen=type.gen, block="block", ibk=ibk.field,
                                   type.block="fixed", model=sel, strict=strict.level)
   }else{
     # No-Spatial but different design scenarios
@@ -614,7 +620,7 @@ for(i in 1:nlevels(data$trial)){
     
     # Performing No-Spatial Analysis: y = mu + block + block:ibk + gen + e (not dealing checks)
     output.ID <- gral.single(data=site.data, gen="gen", resp="resp",
-                             block="block", ibk="ibk", add.block=has.block, add.ibk=has.ibk,
+                             block="block", ibk=ibk.field, add.block=has.block, add.ibk=has.ibk,
                              type.gen=type.gen, type.block="fixed", type.residual="indep")
   }
   
@@ -646,7 +652,7 @@ for(i in 1:nlevels(data$trial)){
     setup <- mod.list[sel,]
     
     output.REPr <- gral.single(data=outliers$data, gen="gen", row="row", col="col", 
-                               block="block", ibk="ibk", resp="resp",
+                               block="block", ibk=ibk.field, resp="resp",
                                add.block=TRUE,  add.row=setup[2],  add.col=setup[3], 
                                add.spl.row=as.logical(setup[4]), add.spl.col=as.logical(setup[5]), add.ibk=TRUE,
                                type.gen=type.gen, type.block="fixed", type.residual=setup[6],
@@ -654,19 +660,19 @@ for(i in 1:nlevels(data$trial)){
 
     # Running Final model to generate predictions for 2-stage to STORE
     output.REPf <- gral.single(data=outliers$data, gen="gen", row="row", col="col", 
-                               block="block", ibk="ibk", resp="resp",
+                               block="block", ibk=ibk.field, resp="resp",
                                add.block=TRUE,  add.row=setup[2],  add.col=setup[3], 
                                add.spl.row=as.logical(setup[4]), add.spl.col=as.logical(setup[5]), add.ibk=TRUE,
                                type.gen=type.gen, type.block="fixed", type.residual=setup[6],
                                add.nugget=as.logical(setup[7]), fix.vc=TRUE)
   }else{
     output.REPr <- gral.single(data=outliers$data, gen="gen", resp="resp",
-                               block="block", ibk="ibk", add.block=has.block, add.ibk=has.ibk,
+                               block="block", ibk=ibk.field, add.block=has.block, add.ibk=has.ibk,
                                type.gen=type.gen, type.block="fixed", type.residual="indep", fix.vc=FALSE)
 
     # Running Final model to generate predictions for 2-stage to STORE
     output.REPf <- gral.single(data=outliers$data, gen="gen", resp="resp", 
-                               block="block", ibk="ibk", add.block=has.block, add.ibk=has.ibk,
+                               block="block", ibk=ibk.field, add.block=has.block, add.ibk=has.ibk,
                                type.gen=type.gen, type.block="fixed", type.residual="indep", fix.vc=TRUE)
   }
   
