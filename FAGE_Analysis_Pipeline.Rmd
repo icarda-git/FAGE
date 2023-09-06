@@ -1,5 +1,5 @@
 ---
-title: "FAGE Analysis Pipeline (ver 0.6)"
+title: "FAGE Analysis Pipeline (ver 0.6.1)"
 author: "ICARDA"
 date: '`r format(Sys.time(), "At %l:%M %p on %A, %e %B, %Y")`'
 output: 
