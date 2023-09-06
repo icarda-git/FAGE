@@ -1160,30 +1160,32 @@ i <- 1
 repeat{
   fa.model <- paste0("fa", i)
   
-  faMET <- stageMET(data=sel.predS, gen="gen", trial="Environment", resp="predicted.value", weight="weight",
-                    type.gen="random", type.trial="fixed", vc.model=fa.model, rotation="varimax", vcovp="TRUE")
-
-  # check what output components are available
-  # ls(faMET)
-  faModels[[i]] <- faMET
-
-  # good of fit indices and fa cum.var (can be used for criteria to exit the for loop)
-  if(i > 1){
-    # A test statistic equal to twice the absolute difference in these log-likelihoods
-    # is assumed to be distributed as Chi square with one degree of freedom (one term 
-    # of difference between the two models).
-    # p.value <- 1 - pchisq(2 * (model1$loglik - model2$loglik), 1)
-    # if p.value < 0.05 we would therefore conclude that the new model significantly
-    # improves the fit of the previous model, given an increase in log-likelihood.
-    testing.significance <- signif(1 - pchisq(2 * (as.data.frame(faMET$gfit)$logL - as.numeric(exit.criteria[i-1,'logL'])), 1), digits = 3)
-    
-    exit.criteria <- rbind(exit.criteria, c(faMET$gfit, tail(faMET$cum.var,1)[2], fa.model, testing.significance))
-  }else{
-    exit.criteria <- as.data.frame(faMET$gfit)
-    exit.criteria$cum.var <- tail(faMET$cum.var,1)[2]
-    exit.criteria$fa <- fa.model
-    exit.criteria$p.value <- 0
-  }
+  try({
+    faMET <- stageMET(data=sel.predS, gen="gen", trial="Environment", resp="predicted.value", weight="weight",
+                      type.gen="random", type.trial="fixed", vc.model=fa.model, rotation="varimax", vcovp="TRUE")
+  
+    # check what output components are available
+    # ls(faMET)
+    faModels[[i]] <- faMET
+  
+    # good of fit indices and fa cum.var (can be used for criteria to exit the for loop)
+    if(i > 1){
+      # A test statistic equal to twice the absolute difference in these log-likelihoods
+      # is assumed to be distributed as Chi square with one degree of freedom (one term 
+      # of difference between the two models).
+      # p.value <- 1 - pchisq(2 * (model1$loglik - model2$loglik), 1)
+      # if p.value < 0.05 we would therefore conclude that the new model significantly
+      # improves the fit of the previous model, given an increase in log-likelihood.
+      testing.significance <- signif(1 - pchisq(2 * (as.data.frame(faMET$gfit)$logL - as.numeric(exit.criteria[i-1,'logL'])), 1), digits = 3)
+      
+      exit.criteria <- rbind(exit.criteria, c(faMET$gfit, tail(faMET$cum.var,1)[2], fa.model, testing.significance))
+    }else{
+      exit.criteria <- as.data.frame(faMET$gfit)
+      exit.criteria$cum.var <- tail(faMET$cum.var,1)[2]
+      exit.criteria$fa <- fa.model
+      exit.criteria$p.value <- 0
+    }
+  })
   
   i <- i + 1
   
