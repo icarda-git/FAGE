@@ -398,7 +398,7 @@ if (length(plot.names) != 0) {
   page.height <- 5 * max(as.numeric(data$row))
   
   ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-1_Fieldmap.pdf"), 
-         plot = pages, width = page.width, height = page.height, dpi = 600, units = "cm")
+         plot = pages, width = page.width, height = page.height, dpi = 600, units = "cm", limitsize = FALSE)
   
   select.plot <- paste0("plots/fieldmap_", plot.names, "_", trait.name, ".png")
   names(select.plot) <- plot.names
@@ -1330,7 +1330,7 @@ h.cm <- n.rows * 10
 
 pages <- marrangeGrob(grobs = fa.reg.plots, nrow=1, ncol=1, top = quote(paste("Latent reg plots fac", g)))
 ggsave(paste0("outputs/", study.name, "_", trait.name, "_Stage-2_Latent_Reg_Plots_FA.pdf"), 
-       plot = pages, width = w.cm, height = h.cm, dpi = 300, units = "cm")
+       plot = pages, width = w.cm, height = h.cm, dpi = 300, units = "cm", limitsize = FALSE)
 ```
 
 ```{r latent_reg_plots, warning = FALSE}
