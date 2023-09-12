@@ -1300,7 +1300,7 @@ The use of FA models with an exploration of the BLUP effects together with the f
 fa.reg.plots <- list()
 
 # how many plots per each grid row
-n.cols <- floor(sqrt(nlevels(sel.model$predictions$gen))) / 2
+n.cols <- floor(sqrt(nlevels(sel.model$predictions$gen)) / 2)
 
 for(fa.s in 1:i){
   reg.plots <- list()
